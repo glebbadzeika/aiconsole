@@ -39,9 +39,12 @@ def profile(
 @router.get("/profile_image")
 def get_profile_image(
     img_filename: str,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
     user_profile_service: UserProfileService = Depends(dependency=user_profile_service),
 ) -> FileResponse:
-    file_path = user_profile_service.get_profile_image_path(img_filename)
+    size = (width, height) if width and height else None
+    file_path = user_profile_service.get_profile_image_path(img_filename,size)
     if not file_path.exists():
         file_path = user_profile_service.get_avatar(img_filename)
 

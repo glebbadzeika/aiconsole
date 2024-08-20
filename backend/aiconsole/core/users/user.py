@@ -3,6 +3,7 @@ from functools import lru_cache
 from mimetypes import guess_extension
 from pathlib import Path
 from typing import BinaryIO
+from PIL import Image
 
 from aiconsole.consts import AICONSOLE_USER_CONFIG_DIR
 from aiconsole.core.settings.settings import settings
@@ -53,6 +54,7 @@ class UserProfileService:
 
         file_path = self.get_avatar(file_name)
         self._save_avatar_to_fs(file, file_path)
+        self._downscale_image(file_path)
 
         avatar_url = f"profile_image?img_filename={file_path.name}"
         settings().save(
@@ -62,7 +64,17 @@ class UserProfileService:
             to_global=True,
         )
 
-    def get_avatar(self, img_filename: str) -> Path:
+    def _downscale_image(self, file_path: Path, sizes: list[tuple[int, int]] = [(128, 128), (64, 64), (32, 32)]) -> None:
+        with Image.open(file_path) as img:
+            for size in sizes:
+                img_resized = img.resize(size, Image.LANCZOS)
+                resized_path = file_path.with_name(f"{file_path.stem}_{size[0]}x{size[1]}{file_path.suffix}")
+                img_resized.save(resized_path)
+
+    def get_avatar(self, img_filename: str, size: tuple[int, int] | None = None) -> Path:
+        if size:
+            resized_filename = f"{Path(img_filename).stem}_{size[0]}x{size[1]}{Path(img_filename).suffix}"
+            return self.get_avatar_folder_path() / resized_filename
         return self.get_avatar_folder_path() / img_filename
 
     @staticmethod
@@ -72,7 +84,10 @@ class UserProfileService:
         return avatar_folder_path
 
     @staticmethod
-    def get_profile_image_path(img_filename: str) -> Path:
+    def get_profile_image_path(img_filename: str, size: tuple[int, int] | None = None) -> Path:
+        if size:
+            resized_filename = f"{Path(img_filename).stem}_{size[0]}x{size[1]}{Path(img_filename).suffix}"
+            return resource_to_path(DEFAULT_AVATARS_PATH) / resized_filename
         return resource_to_path(DEFAULT_AVATARS_PATH) / img_filename
 
     def _get_default_avatar(self, email: str | None = None) -> str:
